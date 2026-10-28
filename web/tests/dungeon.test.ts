@@ -1,10 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { AFK_MS, WAVE_MS, advance, defaultSetup, effectiveNow, emptySnapshot, fromSetup, phaseElapsed, toSetup, transition, type Command, type Session, type Snapshot } from '../src/domain/dungeon';
+import {
+  AFK_MS,
+  WAVE_MS,
+  advance,
+  defaultSetup,
+  effectiveNow,
+  emptySnapshot,
+  fromSetup,
+  phaseElapsed,
+  toSetup,
+  transition,
+  type Command,
+  type Snapshot,
+} from '../src/domain/dungeon';
 
 const START = 1_000_000;
 const fresh = () => fromSetup(defaultSetup(), START, 'session-1');
 const envelope = (session = fresh()): Snapshot => ({ ...emptySnapshot(), session });
-const apply = (snapshot: Snapshot, command: Command, now = START) => transition(snapshot, command, now).snapshot;
+const apply = (snapshot: Snapshot, command: Command, now = START) =>
+  transition(snapshot, command, now).snapshot;
 
 describe('расписание на респе', () => {
   it('сразу начинает первую волну и соблюдает точные двухминутные границы', () => {
@@ -23,11 +37,13 @@ describe('расписание на респе', () => {
     expect(session.stage).toBe(1);
     expect(session.phase).toEqual({ kind: 'boss', number: 1 });
     expect(events).toHaveLength(5);
-    expect(events.map(e => e.at)).toEqual([1, 2, 3, 4, 5].map(n => START + n * WAVE_MS));
+    expect(events.map((e) => e.at)).toEqual([1, 2, 3, 4, 5].map((n) => START + n * WAVE_MS));
   });
 
-  it.each([2, 5])('застава %i требует обоих боссов', stage => {
-    const s = fresh(); s.stage = stage; s.phase = { kind: 'boss', number: 1 };
+  it.each([2, 5])('застава %i требует обоих боссов', (stage) => {
+    const s = fresh();
+    s.stage = stage;
+    s.phase = { kind: 'boss', number: 1 };
     let current = apply(envelope(s), { type: 'boss-killed' }, START + 1);
     expect(current.session?.stage).toBe(stage);
     expect(current.session?.phase).toEqual({ kind: 'boss', number: 2 });
@@ -38,12 +54,19 @@ describe('расписание на респе', () => {
   });
 
   it('полный маршрут содержит 45 волн и 12 боссов', () => {
-    let current = envelope(); let now = START; let waves = 0; let bosses = 0;
+    let current = envelope();
+    let now = START;
+    let waves = 0;
+    let bosses = 0;
     while (current.session?.status === 'running') {
       if (current.session.phase.kind === 'wave') {
-        waves++; now += WAVE_MS; current = apply(current, { type: 'tick' }, now);
+        waves++;
+        now += WAVE_MS;
+        current = apply(current, { type: 'tick' }, now);
       } else {
-        bosses++; now += 10_000; current = apply(current, { type: 'boss-killed' }, now);
+        bosses++;
+        now += 10_000;
+        current = apply(current, { type: 'boss-killed' }, now);
       }
       expect(bosses).toBeLessThanOrEqual(12);
     }
@@ -67,23 +90,30 @@ describe('отладочная кнопка «Далее»', () => {
       expect(clicks).toBeLessThanOrEqual(57);
     }
     expect(clicks).toBe(57);
-    expect(seen.filter(label => label.includes(':wave:'))).toHaveLength(45);
+    expect(seen.filter((label) => label.includes(':wave:'))).toHaveLength(45);
     expect(seen).toContain('2:boss:2');
     expect(seen).toContain('5:boss:2');
     expect(seen.at(-1)).toBe('9:final:');
     expect(current.session?.status).toBe('completed');
     expect(current.session?.debug).toBe(true);
-    expect(current.session?.afk.map(check => check.status)).toEqual(['pending', 'pending']);
-    expect(() => apply(current, { type: 'debug-next' }, START + 60_000)).toThrow('Нет активного прохождения');
+    expect(current.session?.afk.map((check) => check.status)).toEqual(['pending', 'pending']);
+    expect(() => apply(current, { type: 'debug-next' }, START + 60_000)).toThrow(
+      'Нет активного прохождения',
+    );
   });
 
   it('сбрасывает таймер фазы и позволяет отменить имитацию убийства', () => {
     let current = apply(envelope(), { type: 'debug-next' }, START + 30_000);
     expect(current.session?.phase).toEqual({ kind: 'wave', number: 2 });
     expect(current.session?.phaseStartedAt).toBe(START + 30_000);
-    const s = fresh(); s.stage = 3; s.phase = { kind: 'boss', number: 1 };
+    const s = fresh();
+    s.stage = 3;
+    s.phase = { kind: 'boss', number: 1 };
     current = apply(envelope(s), { type: 'debug-next' }, START + 40_000);
-    expect(current.session?.afk[0]).toEqual({ status: 'pending', deadline: START + 40_000 + AFK_MS });
+    expect(current.session?.afk[0]).toEqual({
+      status: 'pending',
+      deadline: START + 40_000 + AFK_MS,
+    });
     current = apply(current, { type: 'undo' }, START + 41_000);
     expect(current.session?.stage).toBe(3);
     expect(current.session?.phase).toEqual({ kind: 'boss', number: 1 });
@@ -93,16 +123,22 @@ describe('отладочная кнопка «Далее»', () => {
 
 describe('АФК-чеки', () => {
   it('запускает независимые 15-минутные сроки и не останавливает волны', () => {
-    const s = fresh(); s.stage = 3; s.phase = { kind: 'boss', number: 1 };
+    const s = fresh();
+    s.stage = 3;
+    s.phase = { kind: 'boss', number: 1 };
     let current = apply(envelope(s), { type: 'boss-killed' });
     expect(current.session?.stage).toBe(4);
     expect(current.session?.afk[0]).toEqual({ status: 'pending', deadline: START + AFK_MS });
-    current.session!.stage = 6; current.session!.phase = { kind: 'boss', number: 1 };
+    current.session!.stage = 6;
+    current.session!.phase = { kind: 'boss', number: 1 };
     current = apply(current, { type: 'boss-killed' }, START + 100_000);
     expect(current.session?.stage).toBe(7);
     current = apply(current, { type: 'tick' }, START + AFK_MS);
     expect(current.session?.afk[0].status).toBe('expired');
-    expect(current.session?.afk[1]).toEqual({ status: 'pending', deadline: START + 100_000 + AFK_MS });
+    expect(current.session?.afk[1]).toEqual({
+      status: 'pending',
+      deadline: START + 100_000 + AFK_MS,
+    });
     current = apply(current, { type: 'afk-passed', index: 1 }, START + AFK_MS + 1000);
     current = apply(current, { type: 'tick' }, START + AFK_MS * 2);
     expect(current.session?.afk[1].status).toBe('passed');
@@ -110,7 +146,8 @@ describe('АФК-чеки', () => {
   });
 
   it('ручной пропуск заставы не выдумывает срок сдачи квеста', () => {
-    const s = fresh(); s.stage = 3;
+    const s = fresh();
+    s.stage = 3;
     const current = apply(envelope(s), { type: 'next-stage' });
     expect(current.session?.afk[0]).toEqual({ status: 'unknown' });
   });
@@ -118,16 +155,22 @@ describe('АФК-чеки', () => {
 
 describe('восстановление и коррекции', () => {
   it('подключается к боссу без выдуманного времени начала данжа', () => {
-    const setup = defaultSetup(); setup.stage = 5; setup.phase = 'boss-2'; setup.elapsed = 40;
+    const setup = defaultSetup();
+    setup.stage = 5;
+    setup.phase = 'boss-2';
+    setup.elapsed = 40;
     const s = fromSetup(setup, START, 'joined');
-    expect(s.runStartedAt).toBeNull(); expect(s.stageStartedAt).toBeNull();
+    expect(s.runStartedAt).toBeNull();
+    expect(s.stageStartedAt).toBeNull();
     expect(s.phaseStartedAt).toBe(START - 40_000);
     expect(s.afk[0].status).toBe('unknown');
     expect(toSetup(s, START).phase).toBe('boss-2');
   });
 
   it('отменяет ошибочное убийство с восстановлением АФК-чека', () => {
-    const s = fresh(); s.stage = 3; s.phase = { kind: 'boss', number: 1 };
+    const s = fresh();
+    s.stage = 3;
+    s.phase = { kind: 'boss', number: 1 };
     const killed = apply(envelope(s), { type: 'boss-killed' });
     const undone = apply(killed, { type: 'undo' }, START + 10_000);
     expect(undone.session?.stage).toBe(3);
@@ -153,9 +196,12 @@ describe('восстановление и коррекции', () => {
   });
 
   it('отклоняет невозможные состояния и не меняет исходные данные', () => {
-    const badSetup = defaultSetup(); badSetup.stage = 4; badSetup.phase = 'boss-2';
+    const badSetup = defaultSetup();
+    badSetup.stage = 4;
+    badSetup.phase = 'boss-2';
     expect(() => fromSetup(badSetup, START, 'bad')).toThrow();
-    const current = envelope(); const copy = structuredClone(current);
+    const current = envelope();
+    const copy = structuredClone(current);
     expect(() => apply(current, { type: 'boss-killed' })).toThrow();
     expect(current).toEqual(copy);
   });

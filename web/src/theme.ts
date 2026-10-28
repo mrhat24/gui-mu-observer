@@ -1,15 +1,17 @@
 import { createTheme } from '@mui/material/styles';
+import { colors } from './designTokens';
 
 export const theme = createTheme({
+  cssVariables: true,
   palette: {
     mode: 'dark',
-    primary: { main: '#c5e99b', contrastText: '#172016' },
-    background: { default: '#101411', paper: '#191e1a' },
-    text: { primary: '#f0f3ed', secondary: '#98a397' },
-    divider: '#2b332c',
-    success: { main: '#a8d58c' },
-    warning: { main: '#e6bb72' },
-    error: { main: '#ee958b' },
+    primary: { main: colors.primary, contrastText: colors.primaryText },
+    background: { default: colors.background, paper: colors.surface },
+    text: { primary: colors.text, secondary: colors.secondaryText },
+    divider: colors.divider,
+    success: { main: colors.success },
+    warning: { main: colors.warning },
+    error: { main: colors.error },
   },
   shape: { borderRadius: 12 },
   typography: {
@@ -21,11 +23,27 @@ export const theme = createTheme({
     body2: { fontSize: '.85rem', lineHeight: 1.6 },
   },
   components: {
-    MuiButton: { defaultProps: { disableElevation: true }, styleOverrides: { root: { minHeight: 42, paddingInline: 18 }, outlined: { borderColor: '#39443a', color: '#e0e6dc' } } },
-    MuiPaper: { defaultProps: { elevation: 0 }, styleOverrides: { root: { backgroundImage: 'none' } } },
-    MuiDialog: { styleOverrides: { paper: { border: '1px solid #354036', backgroundColor: '#191e1a' } } },
+    MuiButton: {
+      defaultProps: { disableElevation: true },
+      styleOverrides: {
+        root: { minHeight: 42, paddingInline: 18 },
+        outlined: { borderColor: '#39443a', color: '#e0e6dc' },
+      },
+    },
+    MuiPaper: {
+      defaultProps: { elevation: 0 },
+      styleOverrides: { root: { backgroundImage: 'none' } },
+    },
+    MuiDialog: {
+      styleOverrides: { paper: { border: '1px solid #354036', backgroundColor: '#191e1a' } },
+    },
     MuiChip: { styleOverrides: { root: { fontSize: '.72rem', fontWeight: 500 } } },
-    MuiLinearProgress: { styleOverrides: { root: { borderRadius: 4, backgroundColor: '#303a2b', height: 6 }, bar: { borderRadius: 4, transition: 'none' } } },
+    MuiLinearProgress: {
+      styleOverrides: {
+        root: { borderRadius: 4, backgroundColor: '#303a2b', height: 6 },
+        bar: { borderRadius: 4, transition: 'none' },
+      },
+    },
     MuiTooltip: { defaultProps: { arrow: true } },
   },
 });

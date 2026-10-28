@@ -1,0 +1,9 @@
+export const STAGE_COUNT = 9;
+export const WAVES_PER_STAGE = 5;
+export const WAVE_MS = 120_000;
+export const AFK_MS = 900_000;
+export const STAGE_WAVES_MS = WAVES_PER_STAGE * WAVE_MS;
+export const DOUBLE_BOSS_STAGES: readonly number[] = [2, 5];
+export const AFK_STAGES = [3, 6] as const;
+export const MAX_UNDO = 50;
+export const bossCount = (stage: number) => (DOUBLE_BOSS_STAGES.includes(stage) ? 2 : 1);

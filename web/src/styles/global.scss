@@ -1,9 +1,42 @@
-:root { font-family: 'Segoe UI', Arial, sans-serif; color-scheme: dark; font-synthesis: none; text-rendering: optimizeLegibility; }
-* { box-sizing: border-box; }
-body { margin: 0; min-width: 360px; }
-button, input { font: inherit; }
-button:focus-visible, a:focus-visible { outline: 2px solid #c5e99b; outline-offset: 4px; }
-::selection { background: #c5e99b; color: #172016; }
-::-webkit-scrollbar { width: 7px; height: 7px; }
-::-webkit-scrollbar-thumb { background: #39443a; border-radius: 8px; }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+:root {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  color-scheme: dark;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  min-width: 360px;
+}
+button,
+input {
+  font: inherit;
+}
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid #c5e99b;
+  outline-offset: 4px;
+}
+::selection {
+  background: #c5e99b;
+  color: #172016;
+}
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-thumb {
+  background: #39443a;
+  border-radius: 8px;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

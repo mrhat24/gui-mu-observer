@@ -1,84 +1,110 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { emptySnapshot, type Command, type Snapshot } from '../domain/dungeon';
 import { Repository } from '../storage/database';
+import { TrackerService } from '../services/TrackerService';
 
 export function useTracker() {
-  const repository = useRef<Repository | null>(null);
-  const snapshotRef = useRef<Snapshot>(emptySnapshot());
-  const pending = useRef(false);
+  const serviceRef = useRef<TrackerService | null>(null);
+  const manualRequests = useRef(0);
   const [snapshot, setSnapshot] = useState(emptySnapshot);
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(Date.now);
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [restored, setRestored] = useState(false);
 
   const publish = useCallback((value: Snapshot) => {
-    snapshotRef.current = value;
     setSnapshot(value);
     setNow(Date.now());
   }, []);
 
   useEffect(() => {
     let cancelled = false;
-    let ownRepository: Repository | undefined;
+    let ownService: TrackerService | undefined;
     let timer: ReturnType<typeof setInterval> | undefined;
     const tick = async () => {
       setNow(Date.now());
-      if (pending.current || !repository.current) return;
-      pending.current = true;
       try {
-        const value = await repository.current.execute({ type: 'tick' }, Date.now());
-        if (!cancelled) publish(value);
+        await ownService?.tick();
       } catch (e) {
         if (!cancelled) setError(`Не удалось обновить сохранённую сессию: ${message(e)}`);
-      } finally { pending.current = false; }
+      }
     };
-    const wake = () => { if (document.visibilityState === 'visible') void tick(); };
+    const wake = () => {
+      if (document.visibilityState === 'visible') void tick();
+    };
     void (async () => {
       try {
-        ownRepository = await Repository.open();
-        if (cancelled) { ownRepository.close(); return; }
-        repository.current = ownRepository;
-        const previous = await ownRepository.read();
-        const value = await ownRepository.execute({ type: 'tick' }, Date.now());
+        const repository = await Repository.open();
+        if (cancelled) {
+          repository.close();
+          return;
+        }
+        ownService = new TrackerService(repository, (value) => {
+          if (!cancelled) publish(value);
+        });
+        serviceRef.current = ownService;
+        const wasRunning = await ownService.initialize();
         if (cancelled) return;
-        publish(value);
-        setRestored(previous.session?.status === 'running');
+        setRestored(wasRunning);
         setReady(true);
-        timer = setInterval(() => { void tick(); }, 1000);
+        timer = setInterval(() => {
+          void tick();
+        }, 1000);
         document.addEventListener('visibilitychange', wake);
       } catch (e) {
-        if (!cancelled) setError(`Локальное хранилище недоступно: ${message(e)}. Перезапустите страницу; сохранённые данные не будут перезаписаны.`);
+        if (!cancelled)
+          setError(
+            `Локальное хранилище недоступно: ${message(e)}. Перезапустите страницу; сохранённые данные не будут перезаписаны.`,
+          );
       }
     })();
     return () => {
       cancelled = true;
       clearInterval(timer);
       document.removeEventListener('visibilitychange', wake);
-      if (repository.current === ownRepository) repository.current = null;
-      ownRepository?.close();
+      if (serviceRef.current === ownService) serviceRef.current = null;
+      ownService?.dispose();
     };
   }, [publish]);
 
   const execute = useCallback(async (command: Command): Promise<boolean> => {
-    if (!repository.current || pending.current) return false;
-    pending.current = true;
+    const service = serviceRef.current;
+    if (!service) {
+      setError('Трекер ещё не готов. Дождитесь загрузки хранилища.');
+      return false;
+    }
+    manualRequests.current += 1;
     setBusy(true);
     try {
-      const value = await repository.current.execute(command, Date.now(), snapshotRef.current.revision);
-      publish(value);
-      setError(null);
-      setRestored(false);
+      await service.execute(command);
+      if (serviceRef.current === service) {
+        setError(null);
+        setRestored(false);
+      }
       return true;
     } catch (e) {
-      setError(`${message(e)} Изменение не применено.`);
-      try { publish(await repository.current.read()); } catch { /* Keep the last known state visible. */ }
+      if (serviceRef.current === service) setError(`${message(e)} Изменение не применено.`);
       return false;
-    } finally { pending.current = false; setBusy(false); }
-  }, [publish]);
+    } finally {
+      manualRequests.current -= 1;
+      if (serviceRef.current === service) setBusy(manualRequests.current > 0);
+    }
+  }, []);
 
-  return { snapshot, now, ready, busy, error, restored, execute, dismissRestored: () => setRestored(false), clearError: () => setError(null) };
+  return {
+    snapshot,
+    now,
+    ready,
+    busy,
+    error,
+    restored,
+    execute,
+    dismissRestored: () => setRestored(false),
+    clearError: () => setError(null),
+  };
 }
 
-function message(error: unknown) { return error instanceof Error ? error.message : String(error); }
+function message(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
