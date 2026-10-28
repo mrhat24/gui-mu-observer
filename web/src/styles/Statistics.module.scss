@@ -1,0 +1,221 @@
+.statistics {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-bottom: 20px;
+}
+.intro {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  h2 {
+    font-size: clamp(24px, 3vw, 36px);
+    letter-spacing: -0.04em;
+    margin: 8px 0;
+    font-weight: 500;
+  }
+  p {
+    margin: 0;
+    color: var(--mui-palette-text-secondary);
+    font-size: 13px;
+  }
+}
+.eyebrow {
+  color: var(--mui-palette-primary-main);
+  letter-spacing: 0.13em;
+  font-size: 10px;
+}
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  > div:first-child {
+    min-width: 175px;
+  }
+}
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+.card {
+  background: var(--mui-palette-background-paper);
+  border: 1px solid var(--mui-palette-divider);
+  border-radius: 14px;
+  padding: 22px;
+  h3 {
+    margin: 0 0 18px;
+    font-size: 15px;
+    font-weight: 500;
+  }
+  small {
+    display: block;
+    color: var(--mui-palette-text-secondary);
+  }
+}
+.metricTitle {
+  font-size: 12px;
+  color: var(--mui-palette-text-secondary);
+}
+.metricValue {
+  display: block;
+  font-size: clamp(24px, 3vw, 36px);
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  margin: 16px 0 8px;
+  font-variant-numeric: tabular-nums;
+}
+.metricDetail {
+  font-size: 11px;
+  color: var(--mui-palette-text-secondary);
+}
+.accent {
+  background: linear-gradient(140deg, #273821, var(--mui-palette-background-paper));
+  .metricValue {
+    color: var(--mui-palette-primary-main);
+  }
+}
+.note {
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--mui-palette-text-secondary);
+  margin: 0;
+}
+.outcomes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px 32px;
+  > div {
+    display: grid;
+    grid-template-columns: 105px 1fr 30px;
+    gap: 12px;
+    align-items: center;
+    font-size: 12px;
+  }
+  strong {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+}
+.historyHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin-bottom: 16px;
+  h3 {
+    margin: 0;
+  }
+  > div {
+    min-width: 180px;
+  }
+}
+.empty {
+  text-align: center;
+  padding: 38px 16px;
+  color: var(--mui-palette-text-secondary);
+  > svg {
+    font-size: 42px;
+    color: var(--mui-palette-primary-main);
+  }
+  h3 {
+    color: var(--mui-palette-text-primary);
+    margin-top: 16px;
+  }
+  p {
+    font-size: 13px;
+  }
+}
+.time {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  font-weight: 500;
+}
+.tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  color: var(--mui-palette-text-secondary);
+  font-size: 11px;
+}
+.detailsSummary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-block: 16px;
+  flex-wrap: wrap;
+}
+.fights {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 24px;
+  margin-top: 12px;
+  > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    font-size: 12px;
+    color: var(--mui-palette-text-secondary);
+  }
+  strong {
+    color: var(--mui-palette-primary-main);
+    font-variant-numeric: tabular-nums;
+  }
+}
+.events {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+  li {
+    display: flex;
+    gap: 20px;
+    padding: 12px 0;
+    border-top: 1px solid var(--mui-palette-divider);
+    font-size: 12px;
+  }
+  time {
+    color: var(--mui-palette-text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+  strong {
+    font-weight: 500;
+  }
+  span {
+    display: block;
+    margin-top: 4px;
+    color: var(--mui-palette-text-secondary);
+    font-size: 11px;
+  }
+}
+@media (max-width: 900px) {
+  .metrics {
+    grid-template-columns: 1fr 1fr;
+  }
+  .outcomes {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 500px) {
+  .statistics {
+    gap: 16px;
+  }
+  .card {
+    padding: 16px;
+  }
+  .intro {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .metricValue {
+    font-size: 25px;
+  }
+  .fights {
+    grid-template-columns: 1fr;
+  }
+  .historyHeading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

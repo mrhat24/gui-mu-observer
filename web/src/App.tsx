@@ -4,7 +4,7 @@ import ManualControls from './components/ManualControls';
 import DungeonRoute from './components/DungeonRoute';
 import AfkCard from './components/AfkCard';
 import Timeline from './components/Timeline';
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
@@ -41,6 +41,9 @@ import { useTracker } from './hooks/useTracker';
 import SetupDialog from './components/SetupDialog';
 import PwaControls from './components/PwaControls';
 import styles from './styles/App.module.scss';
+import { APP_VERSION } from './version';
+
+const Statistics = lazy(() => import('./components/Statistics'));
 
 function loadCompact() {
   try {
@@ -60,6 +63,7 @@ export default function App() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [compact, setCompact] = useState(loadCompact);
+  const [page, setPage] = useState<'tracker' | 'statistics'>('tracker');
   const wave = session?.phase.kind === 'wave' ? session.phase.number : null;
   const elapsed = session ? phaseElapsed(session, now) : 0;
   const stageElapsed = wave ? (wave - 1) * WAVE_MS + Math.min(WAVE_MS, elapsed) : 600_000;
@@ -77,7 +81,7 @@ export default function App() {
   };
 
   return (
-    <div className={`${styles.app} ${compact ? styles.compact : ''}`}>
+    <div className={`${styles.app} ${compact && page === 'tracker' ? styles.compact : ''}`}>
       <aside className={styles.sidebar}>
         <div className={styles.brand}>
           <img src={`${import.meta.env.BASE_URL}mark.svg`} alt="" />
@@ -92,21 +96,22 @@ export default function App() {
         </div>
         <div className={styles.navCaption}>ПРОХОЖДЕНИЕ</div>
         <nav aria-label="Основная навигация">
-          <button className={styles.navActive} aria-current="page">
+          <button
+            className={page === 'tracker' ? styles.navActive : ''}
+            aria-current={page === 'tracker' ? 'page' : undefined}
+            onClick={() => setPage('tracker')}
+          >
             <DashboardOutlined />
             Трекер
           </button>
-          <Tooltip
-            title="Статистика сохраняется. Экран просмотра появится позже."
-            placement="right"
+          <button
+            className={page === 'statistics' ? styles.navActive : ''}
+            aria-current={page === 'statistics' ? 'page' : undefined}
+            onClick={() => setPage('statistics')}
           >
-            <span>
-              <button disabled>
-                <BarChartRounded />
-                Статистика<span className={styles.soon}>скоро</span>
-              </button>
-            </span>
-          </Tooltip>
+            <BarChartRounded />
+            Статистика
+          </button>
         </nav>
         <div className={styles.sidebarBottom}>
           <button onClick={() => setHelpOpen(true)}>
@@ -125,7 +130,7 @@ export default function App() {
             </div>
           </div>
           <div className={styles.version}>
-            GUI MU OBSERVER<span>v0.1</span>
+            GUI MU OBSERVER<span>v{APP_VERSION}</span>
           </div>
         </div>
       </aside>
@@ -134,11 +139,21 @@ export default function App() {
         <header className={styles.header}>
           <div>
             <div className={styles.eyebrow}>PERFECT WORLD / COMEBACK</div>
-            <h1>Обзор прохождения</h1>
+            <h1>
+              {page === 'tracker' ? 'Обзор прохождения' : 'Статистика'}{' '}
+              <span className={styles.releaseVersion}>v{APP_VERSION}</span>
+            </h1>
             <p>Гуй Му · Магистр</p>
           </div>
           <div className={styles.headerActions}>
             <PwaControls running={!!running} busy={busy} />
+            <Button
+              variant="text"
+              startIcon={page === 'tracker' ? <BarChartRounded /> : <DashboardOutlined />}
+              onClick={() => setPage(page === 'tracker' ? 'statistics' : 'tracker')}
+            >
+              {page === 'tracker' ? 'Статистика' : 'К трекеру'}
+            </Button>
             <Tooltip title={compact ? 'Полный вид' : 'Компактный вид'}>
               <IconButton
                 aria-label={compact ? 'Полный вид' : 'Компактный вид'}
@@ -189,110 +204,125 @@ export default function App() {
           <LinearProgress aria-label="Загрузка сохранённой сессии" sx={{ mb: 2 }} />
         )}
 
-        <div className={styles.contentGrid}>
-          <div className={styles.primaryColumn}>
-            <TimerPanel
-              session={session}
+        {page === 'statistics' ? (
+          <Suspense fallback={<LinearProgress aria-label="Открытие статистики" />}>
+            <Statistics
+              revision={snapshot.revision}
               now={now}
-              ready={ready}
-              busy={busy}
-              canUndo={snapshot.history.length > 0}
-              onAction={act}
-              onStart={() => setSetup('start')}
-              onStop={() => setStopOpen(true)}
+              onTracker={() => setPage('tracker')}
             />
+          </Suspense>
+        ) : (
+          <>
+            <div className={styles.contentGrid}>
+              <div className={styles.primaryColumn}>
+                <TimerPanel
+                  session={session}
+                  now={now}
+                  ready={ready}
+                  busy={busy}
+                  canUndo={snapshot.history.length > 0}
+                  onAction={act}
+                  onStart={() => setSetup('start')}
+                  onStop={() => setStopOpen(true)}
+                />
 
-            <div className={styles.metrics}>
-              <section className={styles.card}>
-                <div className={styles.metricLabel}>
-                  <FlagOutlined />
-                  Время заставы
+                <div className={styles.metrics}>
+                  <section className={styles.card}>
+                    <div className={styles.metricLabel}>
+                      <FlagOutlined />
+                      Время заставы
+                    </div>
+                    <strong>
+                      {session?.stageStartedAt != null
+                        ? formatDuration(
+                            effectiveNow(session, now) - session.stageStartedAt,
+                            'floor',
+                          )
+                        : '--:--'}
+                    </strong>
+                    <span>
+                      {session && session.stageStartedAt === null
+                        ? 'Начало неизвестно'
+                        : 'С появления первой волны'}
+                    </span>
+                  </section>
+                  <RunLimit session={session} now={now} />
                 </div>
-                <strong>
-                  {session?.stageStartedAt != null
-                    ? formatDuration(effectiveNow(session, now) - session.stageStartedAt, 'floor')
-                    : '--:--'}
-                </strong>
-                <span>
-                  {session && session.stageStartedAt === null
-                    ? 'Начало неизвестно'
-                    : 'С появления первой волны'}
-                </span>
-              </section>
-              <RunLimit session={session} now={now} />
+
+                <section className={`${styles.card} ${styles.stageCard}`}>
+                  <div className={styles.cardTitle}>
+                    <h3>Прогресс заставы</h3>
+                    <span>
+                      {session
+                        ? wave
+                          ? `${formatDuration(stageElapsed, 'floor')} / 10:00`
+                          : 'Волны завершены'
+                        : '00:00 / 10:00'}
+                    </span>
+                  </div>
+                  <LinearProgress
+                    variant="determinate"
+                    value={!session ? 0 : Math.min(100, (stageElapsed / 600_000) * 100)}
+                    aria-label="Прогресс до первого босса заставы"
+                  />
+                  <div className={styles.stageFoot}>
+                    <span>Волна 1</span>
+                    <span>5 волн × 2 минуты</span>
+                    <span>Босс</span>
+                  </div>
+                  <p className={styles.smallNote}>
+                    Шкала до появления первого босса. Время боя учитывается отдельно.
+                  </p>
+                </section>
+
+                <ManualControls session={session} busy={busy} onAction={act} />
+              </div>
+
+              <aside className={styles.secondaryColumn}>
+                <div className={styles.sectionHeading}>
+                  <h3>АФК-чеки</h3>
+                  <Chip size="small" label="15 минут на сдачу" variant="outlined" />
+                </div>
+                {([3, 6] as const).map((stage, i) => (
+                  <AfkCard
+                    key={stage}
+                    stage={stage}
+                    check={session?.afk[i] ?? { status: 'not-yet' }}
+                    now={session ? effectiveNow(session, now) : now}
+                    disabled={!running || busy}
+                    onPass={() => act({ type: 'afk-passed', index: i as 0 | 1 })}
+                  />
+                ))}
+                <section className={`${styles.card} ${styles.timeline}`}>
+                  <div className={styles.cardTitle}>
+                    <h3>Ближайшие события</h3>
+                    <AccessTimeRounded />
+                  </div>
+                  <Timeline session={session} now={now} />
+                </section>
+                <div className={styles.tip}>
+                  <ShieldOutlined />
+                  <p>
+                    После боссов 3 и 6 застав сдайте квест в бобовнике. Следующая застава уже идёт —
+                    таймер не останавливается.
+                  </p>
+                </div>
+              </aside>
             </div>
 
-            <section className={`${styles.card} ${styles.stageCard}`}>
-              <div className={styles.cardTitle}>
-                <h3>Прогресс заставы</h3>
-                <span>
-                  {session
-                    ? wave
-                      ? `${formatDuration(stageElapsed, 'floor')} / 10:00`
-                      : 'Волны завершены'
-                    : '00:00 / 10:00'}
-                </span>
-              </div>
-              <LinearProgress
-                variant="determinate"
-                value={!session ? 0 : Math.min(100, (stageElapsed / 600_000) * 100)}
-                aria-label="Прогресс до первого босса заставы"
-              />
-              <div className={styles.stageFoot}>
-                <span>Волна 1</span>
-                <span>5 волн × 2 минуты</span>
-                <span>Босс</span>
-              </div>
-              <p className={styles.smallNote}>
-                Шкала до появления первого босса. Время боя учитывается отдельно.
-              </p>
-            </section>
+            <DungeonRoute session={session} />
 
-            <ManualControls session={session} busy={busy} onAction={act} />
-          </div>
-
-          <aside className={styles.secondaryColumn}>
-            <div className={styles.sectionHeading}>
-              <h3>АФК-чеки</h3>
-              <Chip size="small" label="15 минут на сдачу" variant="outlined" />
-            </div>
-            {([3, 6] as const).map((stage, i) => (
-              <AfkCard
-                key={stage}
-                stage={stage}
-                check={session?.afk[i] ?? { status: 'not-yet' }}
-                now={session ? effectiveNow(session, now) : now}
-                disabled={!running || busy}
-                onPass={() => act({ type: 'afk-passed', index: i as 0 | 1 })}
-              />
-            ))}
-            <section className={`${styles.card} ${styles.timeline}`}>
-              <div className={styles.cardTitle}>
-                <h3>Ближайшие события</h3>
-                <AccessTimeRounded />
-              </div>
-              <Timeline session={session} now={now} />
-            </section>
-            <div className={styles.tip}>
-              <ShieldOutlined />
-              <p>
-                После боссов 3 и 6 застав сдайте квест в бобовнике. Следующая застава уже идёт —
-                таймер не останавливается.
-              </p>
-            </div>
-          </aside>
-        </div>
-
-        <DungeonRoute session={session} />
-
-        <footer className={styles.footer}>
-          <span>
-            <span className={styles.dot} />
-            {ready ? 'Автосохранение включено' : 'Подключение к хранилищу'}
-          </span>
-          <span>Расписание на респе · интервал 02:00</span>
-          <span>Хорошего захода.</span>
-        </footer>
+            <footer className={styles.footer}>
+              <span>
+                <span className={styles.dot} />
+                {ready ? 'Автосохранение включено' : 'Подключение к хранилищу'}
+              </span>
+              <span>Расписание на респе · интервал 02:00</span>
+              <span>Хорошего захода.</span>
+            </footer>
+          </>
+        )}
       </main>
 
       {setup && (
@@ -389,8 +419,8 @@ export default function App() {
           </Typography>
           <Divider sx={{ my: 2 }} />
           <Typography variant="body2" color="text.secondary">
-            Звуковые предупреждения и просмотр статистики запланированы для следующей версии.
-            История событий уже сохраняется.
+            Версия {APP_VERSION}. Статистика доступна из верхней панели. Звуковые предупреждения
+            запланированы для следующей версии.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ p: 3 }}>

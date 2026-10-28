@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { afterEach, describe, expect, it } from 'vitest';
 import { deleteDB, openDB } from 'idb';
-import { defaultSetup } from '../src/domain/dungeon';
+import { defaultSetup, emptySnapshot, fromSetup, transition } from '../src/domain/dungeon';
 import { Repository } from '../src/storage/database';
 import { BOSS_MS, RUN_MS } from '../src/domain/rules';
 import { phaseElapsed } from '../src/domain/dungeon';
@@ -20,6 +20,51 @@ afterEach(async () => {
 });
 
 describe('атомарное локальное хранение', () => {
+  it('мигрирует базу 0.1 без потери текущей сессии, истории и журнала', async () => {
+    const name = crypto.randomUUID();
+    names.push(name);
+    const initial = transition(
+      emptySnapshot(),
+      { type: 'start', id: 'old-session', setup: defaultSetup() },
+      1_000_000,
+    );
+    const old = await openDB(name, 1, {
+      upgrade(db) {
+        db.createObjectStore('meta', { keyPath: 'key' });
+        db.createObjectStore('sessions', { keyPath: 'id' });
+        db.createObjectStore('events', { autoIncrement: true });
+      },
+    });
+    await old.put('meta', initial.snapshot);
+    await old.put('sessions', initial.snapshot.session!);
+    await old.add('events', initial.events[0]);
+    const other = fromSetup(defaultSetup(), 2_000_000, 'other');
+    await old.put('sessions', other);
+    await old.add('events', { sessionId: other.id, at: 2_000_000, kind: 'start', snapshot: other });
+    old.close();
+    const repo = await Repository.open(name);
+    repositories.push(repo);
+    expect(await repo.read()).toEqual(initial.snapshot);
+    expect((await repo.history()).sessions.map((s) => s.id)).toEqual(['other', 'old-session']);
+    expect(await repo.sessionEvents('old-session')).toEqual(initial.events);
+    const raw = await openDB(name);
+    expect(raw.version).toBe(2);
+    expect(await raw.count('events')).toBe(2);
+    raw.close();
+  });
+
+  it('изолирует повреждённую запись статистики, сохраняя остальную историю', async () => {
+    const name = crypto.randomUUID();
+    const repo = await database(name);
+    await repo.execute({ type: 'start', setup: defaultSetup(), id: 'good' }, 1_000_000);
+    const raw = await openDB(name);
+    await raw.put('sessions', { id: 'bad', phase: null });
+    const history = await repo.history();
+    expect(history.skipped).toBe(1);
+    expect(history.sessions.map((s) => s.id)).toEqual(['good']);
+    expect(await raw.get('sessions', 'bad')).toEqual({ id: 'bad', phase: null });
+    raw.close();
+  });
   it.each(['wave', 'boss-1'] as const)(
     'после закрытия и открытия сохраняет таймер %s и начало данжа',
     async (phase) => {

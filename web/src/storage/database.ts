@@ -3,6 +3,7 @@ import {
   emptySnapshot,
   transition,
   validateSnapshot,
+  validateSession,
   type Command,
   type Event,
   type Session,
@@ -12,18 +13,22 @@ import {
 interface DungeonDatabase extends DBSchema {
   meta: { key: string; value: Snapshot };
   sessions: { key: string; value: Session };
-  events: { key: number; value: Event };
+  events: { key: number; value: Event; indexes: { 'by-session': string } };
 }
 
 export class Repository {
   private constructor(private db: IDBPDatabase<DungeonDatabase>) {}
 
   static async open(name = 'gui-mu-observer-v1') {
-    const db = await openDB<DungeonDatabase>(name, 1, {
-      upgrade(db) {
-        db.createObjectStore('meta', { keyPath: 'key' });
-        db.createObjectStore('sessions', { keyPath: 'id' });
-        db.createObjectStore('events', { autoIncrement: true });
+    const db = await openDB<DungeonDatabase>(name, 2, {
+      upgrade(db, oldVersion, _newVersion, transaction) {
+        if (oldVersion < 1) {
+          db.createObjectStore('meta', { keyPath: 'key' });
+          db.createObjectStore('sessions', { keyPath: 'id' });
+          db.createObjectStore('events', { autoIncrement: true });
+        }
+        if (oldVersion < 2)
+          transaction.objectStore('events').createIndex('by-session', 'sessionId');
       },
       blocking() {
         db.close();
@@ -36,6 +41,39 @@ export class Repository {
     const snapshot = (await this.db.get('meta', 'current')) ?? emptySnapshot();
     validateSnapshot(snapshot);
     return snapshot;
+  }
+
+  async history(): Promise<{ sessions: Session[]; skipped: number }> {
+    const records = await this.db.getAll('sessions');
+    const sessions: Session[] = [];
+    let skipped = 0;
+    for (const record of records) {
+      try {
+        validateSession(record);
+        sessions.push(record);
+      } catch {
+        skipped += 1;
+      }
+    }
+    return {
+      sessions: sessions.sort((a, b) => b.createdAt - a.createdAt || a.id.localeCompare(b.id)),
+      skipped,
+    };
+  }
+
+  async sessionEvents(id: string): Promise<Event[]> {
+    const events = await this.db.getAllFromIndex('events', 'by-session', id);
+    for (const event of events) {
+      if (
+        event.sessionId !== id ||
+        !Number.isSafeInteger(event.at) ||
+        event.at < 0 ||
+        typeof event.kind !== 'string'
+      )
+        throw new Error('Повреждены события прохождения');
+      validateSession(event.snapshot);
+    }
+    return events.sort((a, b) => a.at - b.at);
   }
 
   async execute(command: Command, now: number, expectedRevision?: number): Promise<Snapshot> {
