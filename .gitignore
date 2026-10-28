@@ -1,0 +1,7 @@
+/.tools/
+node_modules/
+web/dist/
+web/*.tsbuildinfo
+web/.sites-runtime/
+web/.env.local
+web/.env.*.local
