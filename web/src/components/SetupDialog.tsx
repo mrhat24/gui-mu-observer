@@ -10,6 +10,7 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { defaultSetup, toSetup, type Session, type Setup, type SyncEdits } from '../domain/dungeon';
 import styles from '../styles/App.module.scss';
+import { RUN_MS } from '../domain/rules';
 
 interface Props {
   session: Session | null;
@@ -50,6 +51,10 @@ export default function SetupDialog({ session, syncing, busy, onClose, onSubmit 
   };
   const maxElapsed = setup.phase === 'wave' ? 119 : 86400;
   const valid =
+    (setup.runElapsed === undefined ||
+      (Number.isInteger(setup.runElapsed) &&
+        setup.runElapsed >= 0 &&
+        setup.runElapsed <= RUN_MS / 1000)) &&
     Number.isInteger(setup.stage) &&
     setup.stage >= 1 &&
     setup.stage <= 9 &&
@@ -140,6 +145,28 @@ export default function SetupDialog({ session, syncing, busy, onClose, onSubmit 
             slotProps={{ htmlInput: { min: 0, max: maxElapsed } }}
           />
         </div>
+        <TextField
+          fullWidth
+          sx={{ mt: 2 }}
+          label="Прошло с начала данжа, сек"
+          type="number"
+          value={setup.runElapsed ?? ''}
+          onChange={(e) => {
+            setEdits((old) => ({ ...old, run: true }));
+            setSetup((old) => ({
+              ...old,
+              runElapsed: e.target.value === '' ? undefined : Number(e.target.value),
+            }));
+          }}
+          slotProps={{ htmlInput: { min: 0, max: RUN_MS / 1000 } }}
+          helperText="Для лимита 4 часа. При подключении посреди данжа оставьте пустым, если начало неизвестно. Нетронутое время продолжает идти."
+          error={
+            setup.runElapsed !== undefined &&
+            (!Number.isInteger(setup.runElapsed) ||
+              setup.runElapsed < 0 ||
+              setup.runElapsed > RUN_MS / 1000)
+          }
+        />
         {[3, 6].map(
           (stage, i) =>
             (setup.stage > stage || setup.phase === 'final') && (

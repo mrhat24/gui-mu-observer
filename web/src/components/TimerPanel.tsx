@@ -8,8 +8,8 @@ import CheckRounded from '@mui/icons-material/CheckRounded';
 import StopRounded from '@mui/icons-material/StopRounded';
 import UndoRounded from '@mui/icons-material/UndoRounded';
 import AccessTimeRounded from '@mui/icons-material/AccessTimeRounded';
-import { type Command, type Session } from '../domain/dungeon';
-import { WAVES_PER_STAGE } from '../domain/rules';
+import { phaseElapsed, type Command, type Session } from '../domain/dungeon';
+import { BOSS_MS, WAVES_PER_STAGE } from '../domain/rules';
 import { timerView } from '../domain/timerView';
 import styles from '../styles/App.module.scss';
 
@@ -37,10 +37,16 @@ export default function TimerPanel({
   const [lastBossClick, setLastBossClick] = useState(0);
   const view = timerView(session, now);
   const running = session?.status === 'running';
-  const completed = session?.status === 'completed';
+  const completed = session?.status === 'completed' || session?.status === 'failed';
   const startLabel = session ? 'Новое прохождение' : 'Старт';
+  const urgent =
+    session?.status === 'failed' ||
+    (running && session.phase.kind !== 'wave' && phaseElapsed(session, now) >= BOSS_MS - 60_000);
   return (
-    <section className={`${styles.card} ${styles.timerCard}`} aria-label="Текущее состояние">
+    <section
+      className={`${styles.card} ${styles.timerCard} ${urgent ? styles.timerUrgent : ''}`}
+      aria-label="Текущее состояние"
+    >
       <div className={styles.cardTop}>
         <span className={styles.sectionLabel}>ТЕКУЩЕЕ СОСТОЯНИЕ</span>
         <span className={`${styles.status} ${running ? styles.statusLive : ''}`}>

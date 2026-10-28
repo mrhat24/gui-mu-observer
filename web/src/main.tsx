@@ -5,6 +5,9 @@ import { ThemeProvider } from '@mui/material/styles';
 import { theme } from './theme';
 import App from './App';
 import './styles/global.scss';
+import { initializePwaWindow } from './pwaWindow';
+
+initializePwaWindow();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

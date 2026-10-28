@@ -1,5 +1,5 @@
 import type { Session, Setup, Snapshot } from './dungeon';
-import { MAX_UNDO, STAGE_COUNT, WAVES_PER_STAGE, bossCount } from './rules';
+import { MAX_UNDO, RUN_MS, STAGE_COUNT, WAVES_PER_STAGE, bossCount } from './rules';
 
 function requireValue(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(`Повреждены локальные данные: ${message}`);
@@ -27,7 +27,15 @@ export function validateSession(value: unknown): asserts value is Session {
     requireValue(integer(phase.number, 1, bossCount(value.stage)), 'неверный босс');
   if (phase.kind === 'final')
     requireValue(value.stage === STAGE_COUNT, 'финалка до последней заставы');
-  requireValue(oneOf(value.status, ['running', 'stopped', 'completed']), 'неверный статус');
+  requireValue(
+    oneOf(value.status, ['running', 'stopped', 'completed', 'failed']),
+    'неверный статус',
+  );
+  if (value.status === 'failed')
+    requireValue(
+      oneOf(value.failureReason, ['boss-timeout', 'run-timeout']),
+      'неверная причина завершения',
+    );
   requireValue(integer(value.createdAt) && integer(value.phaseStartedAt), 'неверное время фазы');
   for (const time of [value.runStartedAt, value.stageStartedAt, value.endedAt]) {
     requireValue(time === null || integer(time), 'неверная временная метка');
@@ -75,6 +83,10 @@ export function validateSnapshot(value: unknown): asserts value is Snapshot {
 
 export function validateSetup(value: unknown): asserts value is Setup {
   requireValue(record(value), 'неверная форма состояния');
+  requireValue(
+    value.runElapsed === undefined || integer(value.runElapsed, 0, RUN_MS / 1000),
+    'неверное время прохождения',
+  );
   requireValue(integer(value.stage, 1, STAGE_COUNT), 'неверная застава');
   requireValue(oneOf(value.phase, ['wave', 'boss-1', 'boss-2', 'final']), 'неверная фаза');
   requireValue(integer(value.wave, 1, WAVES_PER_STAGE), 'неверная волна');

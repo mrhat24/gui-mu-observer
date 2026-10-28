@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { deleteDB, openDB } from 'idb';
 import { defaultSetup } from '../src/domain/dungeon';
 import { Repository } from '../src/storage/database';
+import { BOSS_MS, RUN_MS } from '../src/domain/rules';
+import { phaseElapsed } from '../src/domain/dungeon';
 
 const repositories: Repository[] = [];
 const names: string[] = [];
@@ -18,6 +20,37 @@ afterEach(async () => {
 });
 
 describe('атомарное локальное хранение', () => {
+  it.each(['wave', 'boss-1'] as const)(
+    'после закрытия и открытия сохраняет таймер %s и начало данжа',
+    async (phase) => {
+      const name = crypto.randomUUID();
+      const repo = await database(name);
+      const now = 1_000_000_000;
+      const initial = await repo.execute(
+        {
+          type: 'start',
+          id: 'reload',
+          setup: { ...defaultSetup(), stage: 2, phase, elapsed: 20, runElapsed: 3600 },
+        },
+        now,
+      );
+      repo.close();
+      const reopened = await database(name);
+      const restored = await reopened.execute({ type: 'tick' }, now + 30_000);
+      expect(restored.session?.phaseStartedAt).toBe(initial.session?.phaseStartedAt);
+      expect(restored.session?.runStartedAt).toBe(initial.session?.runStartedAt);
+      expect(phaseElapsed(restored.session!, now + 30_000)).toBe(50_000);
+      expect(restored.session?.status).toBe('running');
+      const failed = await reopened.execute({ type: 'tick' }, now + RUN_MS);
+      expect(failed.session?.status).toBe('failed');
+      expect(failed.session?.endedAt).toBe(
+        phase === 'wave' ? now - 20_000 + 600_000 + BOSS_MS : now - 20_000 + BOSS_MS,
+      );
+      reopened.close();
+      const again = await database(name);
+      expect(await again.execute({ type: 'tick' }, now + RUN_MS * 2)).toEqual(failed);
+    },
+  );
   it('отклоняет повреждённые данные, не стирая исходную запись и журнал', async () => {
     const name = crypto.randomUUID();
     const repo = await database(name);

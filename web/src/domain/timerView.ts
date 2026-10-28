@@ -6,7 +6,7 @@ import {
   phaseLabel,
   type Session,
 } from './dungeon';
-import { WAVES_PER_STAGE, WAVE_MS } from './rules';
+import { BOSS_MS, WAVES_PER_STAGE, WAVE_MS } from './rules';
 
 export interface TimerView {
   title: string;
@@ -58,6 +58,24 @@ export function timerView(s: Session | null, now: number): TimerView {
       next: { label: 'Завершено', title: clock(s.endedAt!), detail: 'Результат сохранён' },
     };
   }
+  if (s.status === 'failed') {
+    return {
+      title: 'Время вышло',
+      phaseChip: phaseLabel(s.phase),
+      status: 'Лимит истёк',
+      subtitle:
+        s.failureReason === 'run-timeout'
+          ? 'Истёк лимит 4 часа на прохождение Гуй Му.'
+          : 'Истёк лимит 15 минут на убийство босса.',
+      label: 'ВРЕМЯ ДО ЗАВЕРШЕНИЯ',
+      time: formatDuration(s.endedAt! - (s.runStartedAt ?? s.createdAt), 'floor'),
+      hint:
+        s.runStartedAt === null ? 'Показано время с подключения' : 'Результат сохранён в истории',
+      wave: s.phase.kind === 'wave' ? s.phase.number : null,
+      progress: 100,
+      next: { label: 'Завершено', title: clock(s.endedAt!), detail: 'Лимит времени' },
+    };
+  }
   const wave = s.phase.kind === 'wave' ? s.phase.number : null;
   const elapsed = phaseElapsed(s, now);
   const status = s.status === 'running' ? 'Прохождение идёт' : 'Сессия остановлена';
@@ -81,11 +99,11 @@ export function timerView(s: Session | null, now: number): TimerView {
     phaseChip,
     status,
     wave,
-    progress: 100,
+    progress: Math.min(100, (elapsed / BOSS_MS) * 100),
     subtitle: 'Подтвердите убийство, чтобы продолжить прохождение',
-    label: 'ВРЕМЯ БОЯ',
-    time: formatDuration(effectiveNow(s, now) - s.phaseStartedAt, 'floor'),
-    hint: 'Следующий этап — после убийства босса',
+    label: 'ОСТАЛОСЬ НА БОССА',
+    time: formatDuration(BOSS_MS - (effectiveNow(s, now) - s.phaseStartedAt)),
+    hint: `Бой идёт ${formatDuration(elapsed, 'floor')} · лимит 15:00`,
     next: { label: 'Далее', title: nextLabel(s), detail: 'По подтверждению' },
   };
 }

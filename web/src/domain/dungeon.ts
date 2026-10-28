@@ -1,6 +1,8 @@
 import { validateSession, validateSetup, validateSnapshot } from './validation';
 import {
   AFK_MS,
+  BOSS_MS,
+  RUN_MS,
   AFK_STAGES,
   MAX_UNDO,
   STAGE_COUNT,
@@ -24,7 +26,8 @@ export interface Session {
   phaseStartedAt: number;
   stage: number;
   phase: Phase;
-  status: 'running' | 'stopped' | 'completed';
+  status: 'running' | 'stopped' | 'completed' | 'failed';
+  failureReason?: 'boss-timeout' | 'run-timeout';
   endedAt: number | null;
   joined: boolean;
   debug?: boolean;
@@ -35,6 +38,7 @@ export interface Setup {
   phase: 'wave' | 'boss-1' | 'boss-2' | 'final';
   wave: number;
   elapsed: number;
+  runElapsed?: number;
   afk: [AfkSetup, AfkSetup];
 }
 export interface AfkSetup {
@@ -43,6 +47,7 @@ export interface AfkSetup {
 }
 export interface SyncEdits {
   phase: boolean;
+  run?: boolean;
   afk: [boolean, boolean];
 }
 export interface Snapshot {
@@ -142,7 +147,8 @@ export function fromSetup(setup: Setup, now: number, id: string): Session {
   const s: Session = {
     id,
     createdAt: now,
-    runStartedAt: joined ? null : now,
+    runStartedAt:
+      setup.runElapsed !== undefined ? now - setup.runElapsed * 1000 : joined ? null : now,
     stageStartedAt: phase.kind === 'wave' ? phaseStartedAt - (phase.number - 1) * WAVE_MS : null,
     phaseStartedAt,
     stage: setup.stage,
@@ -172,6 +178,10 @@ export function toSetup(s: Session, now: number): Setup {
       s.phase.kind === 'wave' ? 119 : 86400,
       Math.floor(phaseElapsed(s, now) / 1000),
     ),
+    runElapsed:
+      s.runStartedAt === null
+        ? undefined
+        : Math.floor((effectiveNow(s, now) - s.runStartedAt) / 1000),
     afk: s.afk.map((check): AfkSetup => ({
       status: check.status === 'not-yet' ? 'unknown' : check.status,
       remaining:
@@ -193,6 +203,9 @@ export function advance(input: Session, now: number): { session: Session; events
   if (s.status !== 'running') return { session: s, events };
   while (true) {
     const waveAt = s.phase.kind === 'wave' ? s.phaseStartedAt + WAVE_MS : Infinity;
+    const bossAt = s.phase.kind !== 'wave' ? s.phaseStartedAt + BOSS_MS : Infinity;
+    const runAt = s.runStartedAt === null ? Infinity : s.runStartedAt + RUN_MS;
+    const limitAt = Math.min(bossAt, runAt);
     let nextAfk: { index: 0 | 1; deadline: number } | undefined;
     for (const index of [0, 1] as const) {
       const check = s.afk[index];
@@ -200,9 +213,15 @@ export function advance(input: Session, now: number): { session: Session; events
         nextAfk = { index, deadline: check.deadline };
       }
     }
-    const dueAt = Math.min(waveAt, nextAfk?.deadline ?? Infinity);
+    const dueAt = Math.min(waveAt, nextAfk?.deadline ?? Infinity, limitAt);
     if (!Number.isFinite(dueAt) || dueAt > now) break;
-    if (s.phase.kind === 'wave' && waveAt <= (nextAfk?.deadline ?? Infinity)) {
+    if (limitAt === dueAt) {
+      s.status = 'failed';
+      s.endedAt = limitAt;
+      s.failureReason = runAt <= bossAt ? 'run-timeout' : 'boss-timeout';
+      events.push(event(s, limitAt, s.failureReason));
+      break;
+    } else if (s.phase.kind === 'wave' && waveAt <= (nextAfk?.deadline ?? Infinity)) {
       s.phaseStartedAt = waveAt;
       s.phase =
         s.phase.number < WAVES_PER_STAGE
@@ -269,12 +288,23 @@ export function transition(
     const advanced = advance(snapshot.session, now);
     snapshot.session = advanced.session;
     events.push(...advanced.events);
+    if (
+      input.session?.status === 'running' &&
+      advanced.session.status === 'failed' &&
+      command.type !== 'sync'
+    ) {
+      snapshot.revision += 1;
+      return { snapshot, events };
+    }
   }
   if (command.type === 'start') {
     assert(snapshot.session?.status !== 'running', 'Сначала остановите текущее прохождение');
     snapshot.session = fromSetup(command.setup, now, command.id);
     snapshot.history = [];
     events.push(event(snapshot.session, now, snapshot.session.joined ? 'join' : 'start'));
+    const started = advance(snapshot.session, now);
+    snapshot.session = started.session;
+    events.push(...started.events);
   } else if (command.type === 'undo') {
     const previous = snapshot.history.pop();
     assert(previous, 'Нет действий для отмены');
@@ -282,11 +312,15 @@ export function transition(
     events.push(event(snapshot.session, now, 'undo'));
   } else if (command.type !== 'tick') {
     const s = snapshot.session;
-    assert(s?.status === 'running', 'Нет активного прохождения');
+    assert(
+      s && (s.status === 'running' || (s.status === 'failed' && command.type === 'sync')),
+      'Нет активного прохождения',
+    );
     snapshot.history.push(structuredClone(s));
     snapshot.history = snapshot.history.slice(-MAX_UNDO);
     switch (command.type) {
       case 'sync': {
+        validateSetup(command.setup);
         const effectiveSetup = command.edits.phase
           ? command.setup
           : { ...toSetup(s, now), afk: command.setup.afk };
@@ -305,7 +339,11 @@ export function transition(
         snapshot.session = {
           ...replacement,
           createdAt: s.createdAt,
-          runStartedAt: s.runStartedAt,
+          runStartedAt: command.edits.run
+            ? command.setup.runElapsed === undefined
+              ? null
+              : now - command.setup.runElapsed * 1000
+            : s.runStartedAt,
           joined: s.joined,
           debug: s.debug,
         };

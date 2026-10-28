@@ -59,7 +59,7 @@ describe('React lifecycle', () => {
         return originalInterval(callback, delay, ...args);
       });
     const shared = {
-      state: { ...emptySnapshot(), session: fromSetup(defaultSetup(), start, 'test') },
+      state: { ...emptySnapshot(), session: fromSetup(defaultSetup(), Date.now(), 'test') },
     };
     const repo = repository(shared);
     mock.open.mockResolvedValue(repo);

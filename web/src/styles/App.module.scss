@@ -282,6 +282,12 @@ $green: var(--mui-palette-primary-main);
 .countdownIdle {
   color: var(--mui-palette-text-secondary);
 }
+.timerUrgent {
+  border-color: var(--mui-palette-error-main);
+  .countdown {
+    color: var(--mui-palette-error-main);
+  }
+}
 .interval {
   color: var(--mui-palette-text-secondary);
   font-size: 11px;
@@ -755,7 +761,6 @@ $green: var(--mui-palette-primary-main);
   grid-template-columns: 1fr;
   .sidebar,
   .routeCard,
-  .metrics,
   .stageCard,
   .timeline,
   .tip,
@@ -776,6 +781,15 @@ $green: var(--mui-palette-primary-main);
   }
   .countdownBlock {
     padding-block: 15px;
+  }
+  .metrics {
+    display: block;
+    > section:first-child {
+      display: none;
+    }
+    > section:last-child {
+      padding: 12px 20px;
+    }
   }
 }
 
@@ -941,5 +955,115 @@ $green: var(--mui-palette-primary-main);
   }
   .routeCard {
     padding-inline: 15px;
+  }
+}
+
+// Installed desktop windows use a denser layout without changing browser tabs.
+@media (display-mode: standalone) and (min-width: 701px),
+  (min-width: 1001px) and (max-height: 1000px) {
+  .app {
+    grid-template-columns: 1fr;
+  }
+  .sidebar {
+    display: none;
+  }
+  .main {
+    max-width: 1400px;
+    padding: 12px 22px;
+  }
+  .header {
+    margin-bottom: 10px;
+  }
+  .header h1 {
+    font-size: 22px;
+    margin-top: 3px;
+  }
+  .header > div > p {
+    display: none;
+  }
+  .primaryColumn {
+    gap: 8px;
+  }
+  .secondaryColumn {
+    gap: 10px;
+  }
+  .timerCard {
+    padding: 16px 22px 0;
+  }
+  .cardTop {
+    margin-bottom: 6px;
+  }
+  .phaseHeading h2 {
+    font-size: 22px;
+  }
+  .muted {
+    margin-block: 4px;
+  }
+  .countdownBlock {
+    padding: 8px 0;
+  }
+  .countdown {
+    font-size: 64px;
+  }
+  .waveSegments {
+    margin-bottom: 8px;
+  }
+  .nextEvent {
+    padding-block: 10px;
+  }
+  .controls {
+    padding-block: 4px;
+  }
+  .metrics > section {
+    padding: 6px 18px;
+  }
+  .metrics > section > strong {
+    font-size: 22px;
+    margin-block: 4px;
+  }
+  .stageCard {
+    padding-block: 8px;
+  }
+  .afkCard {
+    padding: 14px;
+  }
+  .afkTime {
+    margin-top: 8px;
+    font-size: 28px;
+  }
+  .afkCard > p {
+    margin-bottom: 8px;
+  }
+  .timeline {
+    padding: 14px;
+  }
+  .timelineRow {
+    padding-block: 6px;
+  }
+  .routeCard {
+    margin-top: 8px;
+    padding: 10px 20px;
+  }
+  .route {
+    margin-top: 8px;
+  }
+  .footer {
+    padding-top: 12px;
+  }
+  .stageCard .cardTitle {
+    margin-bottom: 10px;
+  }
+  .smallNote {
+    margin-top: 4px;
+  }
+  .routeItem > strong {
+    margin-top: 4px;
+  }
+  .routeCircle {
+    width: 25px;
+    height: 25px;
+  }
+  .routeItem:not(:last-child)::before {
+    top: 12px;
   }
 }

@@ -36,8 +36,12 @@ describe('расписание на респе', () => {
     const { session, events } = advance(fresh(), START + 20_000_000);
     expect(session.stage).toBe(1);
     expect(session.phase).toEqual({ kind: 'boss', number: 1 });
-    expect(events).toHaveLength(5);
-    expect(events.map((e) => e.at)).toEqual([1, 2, 3, 4, 5].map((n) => START + n * WAVE_MS));
+    expect(session.status).toBe('failed');
+    expect(session.failureReason).toBe('boss-timeout');
+    expect(events.map((e) => e.at)).toEqual([
+      ...[1, 2, 3, 4, 5].map((n) => START + n * WAVE_MS),
+      START + 1_500_000,
+    ]);
   });
 
   it.each([2, 5])('застава %i требует обоих боссов', (stage) => {
@@ -140,7 +144,7 @@ describe('АФК-чеки', () => {
       deadline: START + 100_000 + AFK_MS,
     });
     current = apply(current, { type: 'afk-passed', index: 1 }, START + AFK_MS + 1000);
-    current = apply(current, { type: 'tick' }, START + AFK_MS * 2);
+    current = apply(current, { type: 'tick' }, START + AFK_MS + 200_000);
     expect(current.session?.afk[1].status).toBe('passed');
     expect(current.session?.status).toBe('running');
   });

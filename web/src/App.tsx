@@ -1,4 +1,5 @@
 import TimerPanel from './components/TimerPanel';
+import RunLimit from './components/RunLimit';
 import ManualControls from './components/ManualControls';
 import DungeonRoute from './components/DungeonRoute';
 import AfkCard from './components/AfkCard';
@@ -151,7 +152,7 @@ export default function App() {
                 <HelpOutlineRounded />
               </IconButton>
             </Tooltip>
-            {running ? (
+            {running || session?.status === 'failed' ? (
               <Button
                 variant="outlined"
                 startIcon={<SyncRounded />}
@@ -218,20 +219,7 @@ export default function App() {
                     : 'С появления первой волны'}
                 </span>
               </section>
-              <section className={styles.card}>
-                <div className={styles.metricLabel}>
-                  <AccessTimeRounded />
-                  Время прохождения
-                </div>
-                <strong>
-                  {session?.runStartedAt != null
-                    ? formatDuration(effectiveNow(session, now) - session.runStartedAt, 'floor')
-                    : '--:--'}
-                </strong>
-                <span>
-                  {session?.joined ? 'Подключились посреди данжа' : 'От взятия квеста ПЛ'}
-                </span>
-              </section>
+              <RunLimit session={session} now={now} />
             </div>
 
             <section className={`${styles.card} ${styles.stageCard}`}>
@@ -360,6 +348,12 @@ export default function App() {
           <Typography>
             После боссов застав 3 и 6 начинается 15-минутный АФК-чек. Сдайте квест НИПу в бобовнике
             и отметьте его пройденным.
+          </Typography>
+          <Typography>
+            На каждого босса, включая второго и финалку, даётся 15 минут, на весь данж — 4 часа. При
+            истечении лимита сессия завершается с сохранением причины. Перезагрузка страницы не
+            обнуляет сроки. При позднем подключении укажите время от начала данжа, если оно
+            известно.
           </Typography>
           <Typography>
             При позднем подключении выберите текущее состояние в форме старта. После перезапуска
