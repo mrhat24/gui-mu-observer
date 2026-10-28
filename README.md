@@ -117,6 +117,7 @@ pnpm preview
 Workflow: [`.github/workflows/pages.yml`](.github/workflows/pages.yml).
 
 1. В репозитории откройте **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+   В **Settings → Environments → github-pages → Deployment branches and tags** выберите **Selected branches and tags** и добавьте правило типа **Branch** с именем `master` (либо `main`, если публикуете из неё). Без этого правила GitHub может отклонить deploy, даже если build прошёл. После исправления настройки откройте упавший workflow и выберите **Re-run jobs → Re-run failed jobs**.
 2. Добавьте файлы в первый коммит и отправьте текущую ветку:
 
    ```sh
