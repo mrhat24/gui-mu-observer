@@ -11,6 +11,8 @@ import AccessTimeRounded from '@mui/icons-material/AccessTimeRounded';
 import { phaseElapsed, type Command, type Session } from '../domain/dungeon';
 import { BOSS_MS, WAVES_PER_STAGE } from '../domain/rules';
 import { timerView } from '../domain/timerView';
+import { ninthStageBoss, waveMechanics } from '../domain/waveMechanics';
+import MechanicTags from './MechanicTags';
 import styles from '../styles/App.module.scss';
 
 interface Props {
@@ -39,6 +41,12 @@ export default function TimerPanel({
   const running = session?.status === 'running';
   const completed = session?.status === 'completed' || session?.status === 'failed';
   const startLabel = session ? 'Новое прохождение' : 'Старт';
+  const mechanics =
+    session?.phase.kind === 'wave'
+      ? waveMechanics(session.stage, session.phase.number)
+      : session?.stage === 9 && session.phase.kind === 'boss'
+        ? ninthStageBoss
+        : undefined;
   const urgent =
     session?.status === 'failed' ||
     (running && session.phase.kind !== 'wave' && phaseElapsed(session, now) >= BOSS_MS - 60_000);
@@ -60,6 +68,12 @@ export default function TimerPanel({
         {session?.debug && <Chip size="small" color="warning" variant="outlined" label="Отладка" />}
       </div>
       <p className={styles.muted}>{view.subtitle}</p>
+      {running && mechanics && (
+        <div className={styles.currentMechanics} role="group" aria-label="Механики текущего этапа">
+          <MechanicTags tags={mechanics.tags} />
+          {mechanics.hint && <p>{mechanics.hint}</p>}
+        </div>
+      )}
       <div className={styles.countdownBlock}>
         <div className={styles.countdownLabel}>{view.label}</div>
         <div
@@ -72,16 +86,20 @@ export default function TimerPanel({
         <span className={styles.interval}>{view.hint}</span>
       </div>
       <div className={styles.waveSegments} aria-label="Прогресс волн">
-        {Array.from({ length: WAVES_PER_STAGE }, (_, index) => index + 1).map((n) => (
-          <div key={n}>
-            <div
-              className={`${styles.segment} ${session && (!view.wave || n < view.wave) ? styles.segmentDone : ''}`}
-            >
-              {view.wave === n && <span style={{ width: `${view.progress}%` }} />}
+        {Array.from({ length: WAVES_PER_STAGE }, (_, index) => index + 1).map((n) => {
+          const tags = session && !completed ? waveMechanics(session.stage, n)?.tags : undefined;
+          return (
+            <div key={n} aria-current={view.wave === n ? 'step' : undefined}>
+              <div
+                className={`${styles.segment} ${tags?.length ? styles.segmentThreat : ''} ${session && (!view.wave || n < view.wave) ? styles.segmentDone : ''}`}
+              >
+                {view.wave === n && <span style={{ width: `${view.progress}%` }} />}
+              </div>
+              <span className={view.wave === n ? styles.activeText : ''}>Волна {n}</span>
+              {tags && <MechanicTags tags={tags} />}
             </div>
-            <span className={view.wave === n ? styles.activeText : ''}>Волна {n}</span>
-          </div>
-        ))}
+          );
+        })}
       </div>
       <div className={styles.nextEvent}>
         <span>

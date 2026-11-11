@@ -303,7 +303,7 @@ $green: var(--mui-palette-primary-main);
 }
 .waveSegments {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 7px;
   margin: 4px 0 22px;
   > div > span {
@@ -329,6 +329,19 @@ $green: var(--mui-palette-primary-main);
 }
 .segmentDone {
   background: #9bbd78;
+}
+.segmentThreat:not(.segmentDone) {
+  background: #65502e;
+}
+.currentMechanics {
+  border-left: 2px solid var(--mui-palette-divider);
+  padding-left: 10px;
+  p {
+    margin: 5px 0 0;
+    color: var(--mui-palette-text-secondary);
+    font-size: 11px;
+    line-height: 1.5;
+  }
 }
 .nextEvent {
   display: flex;

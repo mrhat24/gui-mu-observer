@@ -1,0 +1,39 @@
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  list-style: none;
+  margin: 5px 0 0;
+  padding: 0;
+
+  li {
+    max-width: 100%;
+    padding: 2px 5px;
+    border-radius: 5px;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+}
+
+.stun {
+  color: #ffdb9d;
+  background: #523b20;
+}
+.sleep {
+  color: #e5ceff;
+  background: #463257;
+}
+.root {
+  color: #bcecd3;
+  background: #284739;
+}
+.interrupt {
+  color: #ffc5bc;
+  background: #512f31;
+}
+.damage {
+  color: #ffc6e3;
+  background: #503148;
+}

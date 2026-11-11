@@ -2,7 +2,9 @@ import FlagOutlined from '@mui/icons-material/FlagOutlined';
 import WavesRounded from '@mui/icons-material/WavesRounded';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
 import { formatDuration, nextLabel, type Session } from '../domain/dungeon';
-import { WAVE_MS } from '../domain/rules';
+import { WAVES_PER_STAGE, WAVE_MS } from '../domain/rules';
+import { ninthStageBoss, waveMechanics } from '../domain/waveMechanics';
+import MechanicTags from './MechanicTags';
 import styles from '../styles/App.module.scss';
 const clock = (at: number) =>
   new Date(at).toLocaleTimeString('ru-RU', {
@@ -41,11 +43,18 @@ export default function Timeline({ session, now }: { session: Session | null; no
       </div>
     );
   const wave = session.phase.number;
-  const entries = Array.from({ length: 6 - wave }, (_, i) => {
+  const entries = Array.from({ length: WAVES_PER_STAGE + 1 - wave }, (_, i) => {
     const n = wave + i + 1;
+    const boss = n > WAVES_PER_STAGE;
+    const mechanics = boss
+      ? session.stage === 9
+        ? ninthStageBoss
+        : undefined
+      : waveMechanics(session.stage, n);
     return {
-      title: n === 6 ? 'Босс 1' : `Волна ${n}`,
-      boss: n === 6,
+      title: boss ? 'Босс 1' : `Волна ${n}`,
+      boss,
+      tags: mechanics?.tags,
       at: session.phaseStartedAt + (i + 1) * WAVE_MS,
     };
   });
@@ -59,6 +68,7 @@ export default function Timeline({ session, now }: { session: Session | null; no
           <div>
             <strong>{entry.title}</strong>
             <span>{clock(entry.at)}</span>
+            {entry.tags && <MechanicTags tags={entry.tags} />}
           </div>
           <span className={styles.timelineRemaining}>{formatDuration(entry.at - now)}</span>
           {i === 0 && <ArrowForwardRounded className={styles.timelineArrow} />}
