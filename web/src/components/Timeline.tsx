@@ -46,7 +46,7 @@ export default function Timeline({ session, now }: { session: Session | null; no
   const entries = Array.from({ length: WAVES_PER_STAGE + 1 - wave }, (_, i) => {
     const n = wave + i + 1;
     const boss = n > WAVES_PER_STAGE;
-    const mechanics = boss
+    const tags = boss
       ? session.stage === 9
         ? ninthStageBoss
         : undefined
@@ -54,7 +54,7 @@ export default function Timeline({ session, now }: { session: Session | null; no
     return {
       title: boss ? 'Босс 1' : `Волна ${n}`,
       boss,
-      tags: mechanics?.tags,
+      tags,
       at: session.phaseStartedAt + (i + 1) * WAVE_MS,
     };
   });

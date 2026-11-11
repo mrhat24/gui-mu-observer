@@ -336,12 +336,6 @@ $green: var(--mui-palette-primary-main);
 .currentMechanics {
   border-left: 2px solid var(--mui-palette-divider);
   padding-left: 10px;
-  p {
-    margin: 5px 0 0;
-    color: var(--mui-palette-text-secondary);
-    font-size: 11px;
-    line-height: 1.5;
-  }
 }
 .nextEvent {
   display: flex;

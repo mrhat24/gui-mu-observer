@@ -70,8 +70,7 @@ export default function TimerPanel({
       <p className={styles.muted}>{view.subtitle}</p>
       {running && mechanics && (
         <div className={styles.currentMechanics} role="group" aria-label="Механики текущего этапа">
-          <MechanicTags tags={mechanics.tags} />
-          {mechanics.hint && <p>{mechanics.hint}</p>}
+          <MechanicTags tags={mechanics} />
         </div>
       )}
       <div className={styles.countdownBlock}>
@@ -87,7 +86,7 @@ export default function TimerPanel({
       </div>
       <div className={styles.waveSegments} aria-label="Прогресс волн">
         {Array.from({ length: WAVES_PER_STAGE }, (_, index) => index + 1).map((n) => {
-          const tags = session && !completed ? waveMechanics(session.stage, n)?.tags : undefined;
+          const tags = session && !completed ? waveMechanics(session.stage, n) : undefined;
           return (
             <div key={n} aria-current={view.wave === n ? 'step' : undefined}>
               <div

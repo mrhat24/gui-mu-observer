@@ -6,7 +6,6 @@ const colors: Record<Mechanic, string> = {
   Слип: styles.sleep,
   Рут: styles.root,
   'Сбитие каста': styles.interrupt,
-  Несогласие: styles.interrupt,
   'АоЕ-слип': styles.sleep,
   'АоЕ-ДоТ': styles.damage,
   Драконы: styles.damage,
